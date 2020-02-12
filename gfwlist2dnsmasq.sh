@@ -282,7 +282,7 @@ process(){
 
     # Add extra domains
     if [ ! -z $EXTRA_DOMAIN_FILE ]; then
-        cat $EXTRA_DOMAIN_FILE >> $DOMAIN_FILE
+        cat $EXTRA_DOMAIN_FILE  | grep -E '^\s*[^#].+' >> $DOMAIN_FILE
         printf 'Extra domain file '$EXTRA_DOMAIN_FILE'... ' && _green 'Added\n'
     fi
 
