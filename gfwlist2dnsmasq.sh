@@ -56,6 +56,9 @@ Valid options are:
                 Include extra domains to the result from a domain list text file
                 This file will be processed after the exclude-domain-file
                 Please put one domain per line
+        --no-server-rules
+                Do not generate server rules like 'server=/google.com/8.8.8.8#53'
+                Useful when we set DNS server globally
     -h, --help
                 Usage
 EOF
@@ -108,6 +111,7 @@ get_args(){
     CURL_EXTARG=''
     WGET_EXTARG=''
     WITH_IPSET=0
+    WITH_SERVER_RULES=1
     EXTRA_DOMAIN_FILE=''
     EXCLUDE_DOMAIN_FILE=''
     IPV4_PATTERN='^((2[0-4][0-9]|25[0-5]|[01]?[0-9][0-9]?)\.){3}(2[0-4][0-9]|25[0-5]|[01]?[0-9][0-9]?)$'
@@ -120,6 +124,9 @@ get_args(){
                 ;;
             --domain-list | -l)
                 OUT_TYPE='DOMAIN_LIST'
+                ;;
+            --no-server-rules)
+                WITH_SERVER_RULES=0
                 ;;
             --insecure | -i)
                 CURL_EXTARG='--insecure'
@@ -215,7 +222,7 @@ get_args(){
 
 process(){
     # Set Global Var
-    BASE_URL='https://github.com/gfwlist/gfwlist/raw/master/gfwlist.txt'
+    BASE_URL='https://raw.githubusercontent.com/gfwlist/gfwlist/master/gfwlist.txt'
     TMP_DIR=`mktemp -d /tmp/gfwlist2dnsmasq.XXXXXX`
     BASE64_FILE="$TMP_DIR/base64.txt"
     GFWLIST_FILE="$TMP_DIR/gfwlist.txt"
@@ -281,10 +288,13 @@ process(){
 
     if [ $OUT_TYPE = 'DNSMASQ_RULES' ]; then
     # Convert domains into dnsmasq rules
-        if [ $WITH_IPSET -eq 1 ]; then
+        if [[ $WITH_IPSET -eq 1 ]] && [[ $WITH_SERVER_RULES -eq 1 ]]; then
             _green 'Ipset rules included.'
             sort -u $DOMAIN_FILE | $SED_ERES 's#(.+)#server=/\1/'$DNS_IP'\#'$DNS_PORT'\
 ipset=/\1/'$IPSET_NAME'#g' > $CONF_TMP_FILE
+        elif [ $WITH_IPSET -eq 1 ]; then
+            _green 'Domain rules not included.'
+            sort -u $DOMAIN_FILE | $SED_ERES 's#(.+)#ipset=/\1/'$IPSET_NAME'#g' > $CONF_TMP_FILE
         else
             _green 'Ipset rules not included.'
             sort -u $DOMAIN_FILE | $SED_ERES 's#(.+)#server=/\1/'$DNS_IP'\#'$DNS_PORT'#g' > $CONF_TMP_FILE
